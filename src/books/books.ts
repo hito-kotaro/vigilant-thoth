@@ -1,6 +1,10 @@
 import { Hono } from "hono";
+import { getPrisma } from "../prisma/prismaFunction";
 
-const app = new Hono();
+type Bindings = {
+  DATABASE_URL: string;
+};
+const app = new Hono<{ Bindings: Bindings }>();
 
 // 書籍一覧
 
@@ -13,8 +17,10 @@ let books: {
   published_at: string;
 }[] = [];
 
-app.get("/", (c) => {
-  return c.json({ books: books });
+app.get("/", async (c) => {
+  const prisma = getPrisma(c.env.DATABASE_URL);
+  const mstBooks = await prisma.mst_books.findMany();
+  return c.json({ books: mstBooks });
 });
 
 app.post("/", async (c) => {
@@ -27,16 +33,19 @@ app.post("/", async (c) => {
   }>();
 
   const newBook = {
-    id: books.length + 1,
     isbn,
     title,
     author,
     publisher,
     published_at,
+    created_at: new Date().toISOString(),
   };
-  books = [...books, newBook];
+  const prisma = getPrisma(c.env.DATABASE_URL);
+  const book = await prisma.mst_books.create({
+    data: newBook,
+  });
 
-  return c.json(books);
+  return c.json(book);
 });
 
 app.put("/:id", async (c) => {
