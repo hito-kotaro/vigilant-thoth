@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { getPrisma } from "../prisma/prismaFunction";
-import { Prisma } from "@prisma/client";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -20,8 +19,13 @@ let books: {
 
 app.get("/", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const mstBooks = await prisma.mst_books.findMany();
-  return c.json({ books: mstBooks });
+  try {
+    const mstBooks = await prisma.mst_books.findMany();
+    return c.json({ books: mstBooks });
+  } catch (e) {
+    console.log(e);
+    return c.json({ message: "書籍の取得に失敗しました" });
+  }
 });
 
 app.post("/", async (c) => {
@@ -62,12 +66,14 @@ app.post("/", async (c) => {
 
     return c.json(book);
   } catch (e) {
+    console.log(e);
     return c.json({ message: "書籍の登録に失敗しました" });
   }
 });
 
 app.put("/:id", async (c) => {
   const id = Number(c.req.param("id"));
+  const prisma = getPrisma(c.env.DATABASE_URL);
   const updatedBook = await c.req.json<{
     isbn?: string;
     title?: string;
@@ -80,33 +86,38 @@ app.put("/:id", async (c) => {
     return c.json({ error: "IDが指定されていません" }, 400);
   }
 
-  const index = books.findIndex((book) => book.id === id);
-  if (index === -1) {
-    return c.json({ error: "指定されたIDの書籍が見つかりません" }, 404);
+  try {
+    const book = await prisma.mst_books.update({
+      where: {
+        id: id,
+      },
+      data: updatedBook,
+    });
+    return c.json(book);
+  } catch (e) {
+    console.log(e);
+    return c.json({ message: "書籍の更新に失敗しました" });
   }
-
-  books[index] = {
-    ...books[index],
-    ...updatedBook,
-  };
-
-  return c.json(books[index]);
 });
 
 app.delete("/:id", async (c) => {
+  const prisma = getPrisma(c.env.DATABASE_URL);
   const id = Number(c.req.param("id"));
   if (!id) {
     return c.json({ error: "IDが指定されていません" }, 400);
   }
 
-  const index = books.findIndex((book) => book.id === id);
-  if (index === -1) {
-    return c.json({ error: "指定されたIDの書籍が見つかりません" }, 404);
-  } else {
-    books = books.filter((book) => book.id !== id);
+  const book = await prisma.mst_books.delete({
+    where: {
+      id,
+    },
+  });
+  return c.json(book);
+  try {
+  } catch (e) {
+    console.log(e);
+    return c.json({ message: "削除に失敗しました" });
   }
-
-  return c.json({ message: "削除が完了しました" });
 });
 
 export default app;
