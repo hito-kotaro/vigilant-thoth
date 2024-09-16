@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getPrisma } from "../prisma/prismaFunction";
+import { Prisma } from "@prisma/client";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -32,6 +33,19 @@ app.post("/", async (c) => {
     published_at: string;
   }>();
 
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const existBook = await prisma.mst_books.findUnique({
+    where: {
+      isbn: isbn,
+    },
+  });
+
+  if (existBook) {
+    return c.json(existBook);
+  }
+
+  // 書籍が新規登録であれば以降の処理を実施する
   const newBook = {
     isbn,
     title,
@@ -40,12 +54,16 @@ app.post("/", async (c) => {
     published_at,
     created_at: new Date().toISOString(),
   };
-  const prisma = getPrisma(c.env.DATABASE_URL);
-  const book = await prisma.mst_books.create({
-    data: newBook,
-  });
 
-  return c.json(book);
+  try {
+    const book = await prisma.mst_books.create({
+      data: newBook,
+    });
+
+    return c.json(book);
+  } catch (e) {
+    return c.json({ message: "書籍の登録に失敗しました" });
+  }
 });
 
 app.put("/:id", async (c) => {
