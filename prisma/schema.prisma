@@ -25,3 +25,14 @@ model mst_books {
   updated_at DateTime?
   deleted_at DateTime?
 }
+
+model mst_tenants {
+  id Int @id @default(autoincrement())
+  tenant_name String @unique
+  root_user String
+  root_password String
+  notice_string String?
+  created_at DateTime
+  updated_at DateTime?
+  deleted_at DateTime?
+}
