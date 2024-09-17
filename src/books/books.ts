@@ -7,16 +7,6 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>();
 
 // 書籍一覧
-
-let books: {
-  id?: number;
-  isbn: string;
-  title: string;
-  author: string;
-  publisher: string;
-  published_at: string;
-}[] = [];
-
 app.get("/", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
   try {
