@@ -14,24 +14,55 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-model mst_books {
-  id Int @id @default(autoincrement())
-  isbn String @unique
-  title String
-  author String
-  publisher String
-  published_at String
-  created_at DateTime
-  updated_at DateTime?
-  deleted_at DateTime?
-}
-
 model mst_tenants {
   id Int @id @default(autoincrement())
   tenant_name String @unique
   root_user String
   root_password String
   notice_string String?
+  created_at DateTime
+  updated_at DateTime?
+  deleted_at DateTime?
+}
+
+model mst_users {
+  id Int @id @default(autoincrement())
+  name String
+  mail String
+  password String
+  created_at DateTime
+  updated_at DateTime?
+  deleted_at DateTime?
+}
+
+model tx_tenant_books {
+  id Int @id @default(autoincrement())
+  tenant_id Int
+  title String
+  author String?
+  publisher String?
+  published_at DateTime?
+  created_at DateTime
+  updated_at DateTime?
+  deleted_at DateTime?
+}
+
+model tx_rental_histories {
+  id Int @id @default(autoincrement())
+  book_id Int
+  user_id Int
+  action Boolean
+  created_at DateTime
+  updated_at DateTime?
+  deleted_at DateTime?
+}
+
+model tx_book_reviews {
+  id Int @id @default(autoincrement())
+  book_id Int
+  user_id Int
+  comment String
+  rating Int
   created_at DateTime
   updated_at DateTime?
   deleted_at DateTime?
