@@ -38,10 +38,11 @@ model mst_users {
 model tx_tenant_books {
   id Int @id @default(autoincrement())
   tenant_id Int
+  isbn String 
   title String
   author String?
   publisher String?
-  published_at DateTime?
+  published_at String?
   created_at DateTime
   updated_at DateTime?
   deleted_at DateTime?
