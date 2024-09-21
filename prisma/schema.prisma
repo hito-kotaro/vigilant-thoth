@@ -27,6 +27,7 @@ model mst_tenants {
 
 model mst_users {
   id Int @id @default(autoincrement())
+  tenant_id Int
   name String
   mail String
   password String

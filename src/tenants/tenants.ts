@@ -1,20 +1,9 @@
 import { Hono } from "hono";
 import { Bindings, getPrisma } from "../prisma/prismaFunction";
+import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
+import { Prisma } from "@prisma/client";
 
 const app = new Hono<{ Bindings: Bindings }>();
-
-// テナント一覧
-app.get("/", async (c) => {
-  const prisma = getPrisma(c.env.DATABASE_URL);
-
-  try {
-    const tenants = await prisma.mst_tenants.findMany();
-    return c.json(tenants);
-  } catch (e) {
-    console.log(e);
-    return c.json({ message: "テナントの取得に失敗しました" });
-  }
-});
 
 app.get("/:id", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
@@ -28,8 +17,8 @@ app.get("/:id", async (c) => {
     });
     return c.json(tenants);
   } catch (e) {
-    console.log(e);
-    return c.json({ message: "テナントの取得に失敗しました" });
+    console.error(e);
+    return c.json({ message: "テナントが見つかりませんでした" });
   }
 });
 
@@ -41,6 +30,15 @@ app.post("/", async (c) => {
     rootPassword: string;
   }>();
   const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const alreadyExist = await prisma.mst_tenants.findFirst({
+    where: { tenant_name: tenantName },
+  });
+
+  if (alreadyExist) {
+    return c.json({ message: "テナント名がすでに使用されています" });
+  }
+
   const newTenant = {
     tenant_name: tenantName,
     root_user: rootUser,
@@ -52,7 +50,7 @@ app.post("/", async (c) => {
     const tenant = await prisma.mst_tenants.create({ data: newTenant });
     return c.json(tenant);
   } catch (e) {
-    console.log(e);
+    console.error(e);
     return c.json({ message: "テナントの作成に失敗しました" });
   }
 });
@@ -61,9 +59,19 @@ app.post("/", async (c) => {
 app.put("/:id", async (c) => {
   const { newPassword } = await c.req.json<{ newPassword: string }>();
   const tenantId = Number(c.req.param("id"));
+
   const prisma = getPrisma(c.env.DATABASE_URL);
+
   try {
-    const prisma = getPrisma(c.env.DATABASE_URL);
+    const alreadyExist = await prisma.mst_tenants.findUniqueOrThrow({
+      where: { id: tenantId },
+    });
+  } catch (e) {
+    console.error(e);
+    return c.json({ message: "パスワードの更新に失敗しました" });
+  }
+
+  try {
     await prisma.mst_tenants.update({
       where: {
         id: tenantId,
@@ -79,4 +87,38 @@ app.put("/:id", async (c) => {
   }
 });
 
+// テナントの削除
+app.put("/:id", async (c) => {
+  const tenantId = Number(c.req.param("id"));
+
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  try {
+    const alreadyExist = await prisma.mst_tenants.findUniqueOrThrow({
+      where: { id: tenantId },
+    });
+  } catch (e) {
+    console.error(e);
+    return c.json({ message: "対象テナントが存在しません" });
+  }
+
+  try {
+    // テナントIDをもつ、Bookを取得して、Bookをもつデータ全てを削除してから、Bookを消して、Tenantを削除
+    console.log(book_result);
+    await prisma.mst_users.deleteMany({
+      where: {
+        tenant_id: tenantId,
+      },
+    });
+    await prisma.mst_tenants.deleteMany({
+      where: {
+        id: tenantId,
+      },
+    });
+    return c.json({ message: "テナントと関連するデータを削除しました" });
+  } catch (e) {
+    console.error(e);
+    return c.json({ message: "テナントの削除に失敗しました" });
+  }
+});
 export default app;
