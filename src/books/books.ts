@@ -167,6 +167,11 @@ app.put("/rental/:id", async (c) => {
     if (!targetBook.available) {
       return c.json({ message: "その書籍は貸出中です" });
     }
+  } else {
+    // 貸出可能書籍に対する返却は、特に何も起こらないが、更新日時が変わってしまうのでここで止める
+    if (targetBook.available) {
+      return c.json({ message: "その書籍はすでに返却されています" });
+    }
   }
   // ステータス更新
   try {
@@ -190,6 +195,7 @@ app.put("/rental/:id", async (c) => {
       },
     });
     console.log(history);
+    return c.json({ message: "書籍の貸し出し状態を更新しました" });
   } catch (e) {
     console.error(e);
     return c.json({ message: "書籍の更新に失敗しました" });
