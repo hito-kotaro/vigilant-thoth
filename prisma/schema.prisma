@@ -43,6 +43,7 @@ model tx_tenant_books {
   id Int @id @default(autoincrement())
   tenant_id Int
   isbn String 
+  available Boolean
   title String
   author String?
   publisher String?

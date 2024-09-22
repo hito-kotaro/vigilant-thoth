@@ -59,6 +59,7 @@ app.post("/", async (c) => {
       data: {
         tenant_id: Number(tenantId),
         isbn: data[0].summary.isbn,
+        available: true,
         title: data[0].summary.title,
         author: data[0].summary.author,
         publisher: data[0].summary.publisher,
@@ -140,6 +141,60 @@ app.delete("/:id", async (c) => {
     console.error(e);
     return c.json({ message: "更新に失敗しました" });
   }
+});
+
+//書籍の借用/返却をするAPI
+app.put("/rental/:id", async (c) => {
+  const bookId = Number(c.req.param("id"));
+  const { action, userName } = await c.req.json<{
+    action: boolean;
+    userName: string;
+  }>();
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  // 書籍存在チェック
+  const targetBook = await prisma.tx_tenant_books.findFirst({
+    where: { id: bookId },
+  });
+
+  if (!targetBook) {
+    return c.json({ message: "本棚に書籍がありません" });
+  }
+
+  // 貸出対象書籍のステータス確認
+  if (action) {
+    // 借用する時貸出中だったら
+    if (!targetBook.available) {
+      return c.json({ message: "その書籍は貸出中です" });
+    }
+  }
+  // ステータス更新
+  try {
+    const result = await prisma.tx_tenant_books.update({
+      data: {
+        // actionが借用（true）だったら、ステータスは貸出中（false)
+        // actionが返却（false）だったら、ステータスは貸出可能（true)
+        available: !action,
+        updated_at: new Date(),
+      },
+      where: { id: bookId },
+    });
+    console.log(result);
+
+    const history = await prisma.tx_rental_histories.create({
+      data: {
+        book_id: bookId,
+        user_name: userName,
+        action,
+        created_at: new Date(),
+      },
+    });
+    console.log(history);
+  } catch (e) {
+    console.error(e);
+    return c.json({ message: "書籍の更新に失敗しました" });
+  }
+  // 履歴追加
 });
 
 export default app;
