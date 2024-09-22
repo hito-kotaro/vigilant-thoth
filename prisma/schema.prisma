@@ -22,7 +22,6 @@ model mst_tenants {
   notice_string String?
   created_at DateTime
   updated_at DateTime?
-  deleted_at DateTime?
   users mst_users[] 
   books tx_tenant_books[]
 }
@@ -35,7 +34,6 @@ model mst_users {
   password String
   created_at DateTime
   updated_at DateTime?
-  deleted_at DateTime?
   tenant mst_tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
 }
 
@@ -50,7 +48,6 @@ model tx_tenant_books {
   published_at String?
   created_at DateTime
   updated_at DateTime?
-  deleted_at DateTime?
   histories tx_rental_histories[]
   reviews tx_book_reviews[]
   tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
@@ -62,8 +59,6 @@ model tx_rental_histories {
   user_name String
   action Boolean
   created_at DateTime
-  updated_at DateTime?
-  deleted_at DateTime?
   book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
 }
 
@@ -75,6 +70,5 @@ model tx_book_reviews {
   rating Int
   created_at DateTime
   updated_at DateTime?
-  deleted_at DateTime?
   book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
 }
