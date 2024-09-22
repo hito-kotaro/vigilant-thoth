@@ -103,13 +103,32 @@ app.put("/:id", async (c) => {
   }
 
   try {
-    // テナントIDをもつ、Bookを取得して、Bookをもつデータ全てを削除してから、Bookを消して、Tenantを削除
-    console.log(book_result);
+    // テナントIDをもつ、Bookを取得して、
+    const tenantBooks = await prisma.tx_tenant_books.findMany({
+      where: { tenant_id: tenantId },
+    });
+
+    // Bookをもつデータ全てを削除してから、Bookを消して、Tenantを削除
+    tenantBooks.map(async (tenantBook) => {
+      const bookReview = await prisma.tx_book_reviews.deleteMany({
+        where: { book_id: tenantBook.id },
+      });
+      console.log(bookReview);
+
+      const rentalHistory = await prisma.tx_rental_histories.deleteMany({
+        where: { book_id: tenantBook.id },
+      });
+      console.log(rentalHistory);
+    });
+
+    // ユーザを削除
     await prisma.mst_users.deleteMany({
       where: {
         tenant_id: tenantId,
       },
     });
+
+    // 最後にテナントを削除
     await prisma.mst_tenants.deleteMany({
       where: {
         id: tenantId,
