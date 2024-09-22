@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getPrisma } from "../prisma/prismaFunction";
+import { getCookie } from "hono/cookie";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -8,6 +9,9 @@ const app = new Hono<{ Bindings: Bindings }>();
 
 // テナント内の書籍一覧を取得
 app.get("/:tenantId", async (c) => {
+  // これをMiddleWareで受け取って、ルートに渡してあげればおk？
+  const payload = c.get("jwtPayload");
+  console.log(payload);
   const tenantId = Number(c.req.param("tenantId"));
   const prisma = getPrisma(c.env.DATABASE_URL);
   try {
