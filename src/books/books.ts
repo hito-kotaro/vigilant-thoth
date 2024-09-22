@@ -16,7 +16,7 @@ app.get("/:tenantId", async (c) => {
         tenant_id: tenantId,
       },
     });
-    return c.json({ books });
+    return c.json({ books, total: books.length });
   } catch (e) {
     console.error(e);
     return c.json({ message: "書籍の取得に失敗しました" });

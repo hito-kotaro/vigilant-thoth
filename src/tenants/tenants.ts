@@ -1,7 +1,5 @@
 import { Hono } from "hono";
 import { Bindings, getPrisma } from "../prisma/prismaFunction";
-import { PrismaClientKnownRequestError } from "@prisma/client/runtime/library";
-import { Prisma } from "@prisma/client";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
