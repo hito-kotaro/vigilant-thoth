@@ -203,4 +203,26 @@ app.put("/rental/:id", async (c) => {
   // 履歴追加
 });
 
+app.get("/histories/:id", async (c) => {
+  const tenantId = Number(c.req.param("id"));
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const histories = await prisma.tx_tenant_books.findMany({
+    where: { tenant_id: tenantId },
+    include: { histories: true },
+  });
+  return c.json(histories);
+});
+
+app.get("/history/:id", async (c) => {
+  const bookId = Number(c.req.param("id"));
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  const histories = await prisma.tx_tenant_books.findFirst({
+    where: { id: bookId },
+    include: { histories: true },
+  });
+  return c.json(histories);
+});
+
 export default app;
