@@ -86,7 +86,7 @@ app.put("/:id", async (c) => {
 });
 
 // テナントの削除
-app.put("/:id", async (c) => {
+app.delete("/:id", async (c) => {
   const tenantId = Number(c.req.param("id"));
 
   const prisma = getPrisma(c.env.DATABASE_URL);
@@ -101,37 +101,14 @@ app.put("/:id", async (c) => {
   }
 
   try {
-    // テナントIDをもつ、Bookを取得して、
-    const tenantBooks = await prisma.tx_tenant_books.findMany({
-      where: { tenant_id: tenantId },
-    });
-
-    // Bookをもつデータ全てを削除してから、Bookを消して、Tenantを削除
-    tenantBooks.map(async (tenantBook) => {
-      const bookReview = await prisma.tx_book_reviews.deleteMany({
-        where: { book_id: tenantBook.id },
-      });
-      console.log(bookReview);
-
-      const rentalHistory = await prisma.tx_rental_histories.deleteMany({
-        where: { book_id: tenantBook.id },
-      });
-      console.log(rentalHistory);
-    });
-
-    // ユーザを削除
-    await prisma.mst_users.deleteMany({
-      where: {
-        tenant_id: tenantId,
-      },
-    });
-
     // 最後にテナントを削除
-    await prisma.mst_tenants.deleteMany({
+    // cascadeが有効になっているので、書籍データを削除すると紐づく子データも削除される
+    await prisma.mst_tenants.delete({
       where: {
         id: tenantId,
       },
     });
+
     return c.json({ message: "テナントと関連するデータを削除しました" });
   } catch (e) {
     console.error(e);

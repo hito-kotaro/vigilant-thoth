@@ -130,16 +130,8 @@ app.delete("/:id", async (c) => {
   }
 
   try {
-    // 関連するデータ全てを削除
-    const history_result = await prisma.tx_rental_histories.deleteMany({
-      where: { book_id: bookId },
-    });
-    console.log(history_result);
-    const review_result = await prisma.tx_book_reviews.deleteMany({
-      where: { book_id: bookId },
-    });
-    console.log(review_result);
-    const book_result = await prisma.tx_tenant_books.deleteMany({
+    // cascadeが有効になっているので、書籍データを削除すると紐づく子データも削除される
+    const book_result = await prisma.tx_tenant_books.delete({
       where: { id: bookId },
     });
     console.log(book_result);
