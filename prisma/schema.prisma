@@ -24,6 +24,8 @@ model mst_tenants {
   updated_at DateTime?
   users mst_users[] 
   books tx_tenant_books[]
+  reviews tx_rental_histories[]
+  histories tx_book_reviews[]
 }
 
 model mst_users {
@@ -55,15 +57,18 @@ model tx_tenant_books {
 
 model tx_rental_histories {
   id Int @id @default(autoincrement())
+  tenant_id Int
   book_id Int
   user_name String
   action Boolean
   created_at DateTime
   book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
 }
 
 model tx_book_reviews {
   id Int @id @default(autoincrement())
+  tenant_id Int
   book_id Int
   user_name String
   comment String
@@ -71,4 +76,5 @@ model tx_book_reviews {
   created_at DateTime
   updated_at DateTime?
   book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
 }
