@@ -17,7 +17,7 @@ app.post("/", async (c) => {
 
   const prisma = getPrisma(c.env.DATABASE_URL);
 
-  // テナント名の重複確認 メールアドレスかroot
+  // テナント名の重複確認
   const alreadyExist = await prisma.mst_tenants.findFirst({
     where: { tenant_name: tenantName },
   });

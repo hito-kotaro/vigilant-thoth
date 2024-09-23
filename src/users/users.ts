@@ -65,7 +65,7 @@ app.post("/", async (c) => {
 
 app.put("/:userId", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const userId = c.req.param("userId");
+  const userId = Number(c.req.param("userId"));
 
   // ユーザ存在チェック
   const targetUser = await prisma.mst_users.findFirst({

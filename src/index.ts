@@ -4,6 +4,7 @@ import tenants from "./tenants/tenants";
 import users from "./users/users";
 import auth from "./auth/auth";
 import account from "./account/account";
+import reviews from "./reviews/reviews";
 import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import { Bindings } from "./types";
@@ -47,5 +48,6 @@ app.route("api/v1/account", account);
 app.route("api/v1/private/books", books);
 app.route("api/v1/private/tenants", tenants);
 app.route("api/v1/private/users", users);
+app.route("api/v1/private/reviews", reviews);
 
 export default app;
