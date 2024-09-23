@@ -3,6 +3,7 @@ import books from "./books/books";
 import tenants from "./tenants/tenants";
 import users from "./users/users";
 import auth from "./auth/auth";
+import account from "./account/account";
 import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import { Bindings } from "./types";
@@ -14,7 +15,7 @@ import {
 const app = new Hono<{ Bindings: Bindings }>();
 
 // tokenの検証
-app.use("api/v1/*", async (c, next) => {
+app.use("api/v1/private/*", async (c, next) => {
   const token = getCookie(c, "token");
 
   // token存在チェック
@@ -40,9 +41,11 @@ app.use("api/v1/*", async (c, next) => {
   await next();
 });
 
-app.route("auth", auth);
-app.route("api/v1/books", books);
-app.route("api/v1/tenants", tenants);
-app.route("api/v1/users", users);
+app.route("api/v1/auth", auth);
+app.route("api/v1/account", account);
+
+app.route("api/v1/private/books", books);
+app.route("api/v1/private/tenants", tenants);
+app.route("api/v1/private/users", users);
 
 export default app;

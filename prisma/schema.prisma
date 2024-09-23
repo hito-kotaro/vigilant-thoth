@@ -17,8 +17,6 @@ datasource db {
 model mst_tenants {
   id Int @id @default(autoincrement())
   tenant_name String @unique
-  root_user String
-  root_password String
   notice_string String?
   created_at DateTime
   updated_at DateTime?
@@ -34,6 +32,7 @@ model mst_users {
   name String
   mail String
   password String
+  admin Boolean
   created_at DateTime
   updated_at DateTime?
   tenant mst_tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
