@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { getPrisma } from "../prisma/prismaFunction";
-import { getCookie } from "hono/cookie";
 
 type Bindings = {
   DATABASE_URL: string;
@@ -8,12 +7,15 @@ type Bindings = {
 const app = new Hono<{ Bindings: Bindings }>();
 
 // テナント内の書籍一覧を取得
-app.get("/:tenantId", async (c) => {
-  // これをMiddleWareで受け取って、ルートに渡してあげればおk？
+app.get("/", async (c) => {
+  // ペイロード取得
   const payload = c.get("jwtPayload");
-  console.log(payload);
-  const tenantId = Number(c.req.param("tenantId"));
+  const tenantId = Number(payload.tenantId);
+
+  // prismaインスタンス取得
   const prisma = getPrisma(c.env.DATABASE_URL);
+
+  // クエリ実行＆レスポンス
   try {
     const books = await prisma.tx_tenant_books.findMany({
       where: {
@@ -28,13 +30,17 @@ app.get("/:tenantId", async (c) => {
 });
 
 // テナントの本棚に書籍を追加する
-app.post("/", async (c) => {
-  const { tenantId, isbn } = await c.req.json<{
-    tenantId: number;
+app.post("/isbn", async (c) => {
+  const { isbn } = await c.req.json<{
     isbn: string;
   }>();
 
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
+
   const prisma = getPrisma(c.env.DATABASE_URL);
+
+  // 存在チェック
   const alreadyExist = await prisma.tx_tenant_books.findFirst({
     where: { isbn, tenant_id: tenantId },
   });
@@ -81,9 +87,57 @@ app.post("/", async (c) => {
   }
 });
 
+// 手動書籍登録
+app.post("/", async (c) => {
+  const { isbn, title, author, publisher, publishedAt } = await c.req.json<{
+    isbn: string;
+    title: string;
+    author: string;
+    publisher: string;
+    publishedAt: string;
+  }>();
+
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
+
+  const prisma = getPrisma(c.env.DATABASE_URL);
+
+  // 存在チェック
+  const alreadyExist = await prisma.tx_tenant_books.findFirst({
+    where: { isbn, tenant_id: tenantId },
+  });
+
+  if (alreadyExist) {
+    return c.json({ message: "この書籍は登録済みです" });
+  }
+
+  try {
+    const result = await prisma.tx_tenant_books.create({
+      data: {
+        tenant_id: Number(tenantId),
+        isbn,
+        available: true,
+        title,
+        author,
+        publisher,
+        published_at: publishedAt,
+        created_at: new Date(),
+      },
+    });
+    console.log(result);
+    return c.json({ message: "書籍を登録しました" });
+  } catch (e) {
+    console.error(e);
+    return c.json({ message: "登録に失敗しました" });
+  }
+});
+
 // テナントの本を修正する
-app.put("/:id", async (c) => {
-  const bookId = Number(c.req.param("id"));
+app.put("/:bookId", async (c) => {
+  // ペイロード取得
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
+  const bookId = Number(c.req.param("bookId"));
   const body = await c.req.json<{
     title?: string;
     author?: string;
@@ -94,7 +148,7 @@ app.put("/:id", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
 
   const targetBook = await prisma.tx_tenant_books.findUnique({
-    where: { id: bookId },
+    where: { id: bookId, tenant_id: tenantId },
   });
 
   if (!targetBook) {
@@ -103,7 +157,7 @@ app.put("/:id", async (c) => {
 
   try {
     const result = await prisma.tx_tenant_books.update({
-      where: { id: bookId },
+      where: { id: bookId, tenant_id: tenantId },
       data: {
         title: body.title || targetBook.title,
         author: body.author || targetBook.author,
@@ -121,13 +175,17 @@ app.put("/:id", async (c) => {
 });
 
 // テナント内の書籍を削除する
-app.delete("/:id", async (c) => {
-  const bookId = Number(c.req.param("id"));
+app.delete("/:bookId", async (c) => {
+  // ペイロード取得
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
+
+  const bookId = Number(c.req.param("bookId"));
 
   const prisma = getPrisma(c.env.DATABASE_URL);
 
   const targetBook = await prisma.tx_tenant_books.findUnique({
-    where: { id: bookId },
+    where: { id: bookId, tenant_id: tenantId },
   });
 
   if (!targetBook) {
@@ -137,7 +195,7 @@ app.delete("/:id", async (c) => {
   try {
     // cascadeが有効になっているので、書籍データを削除すると紐づく子データも削除される
     const book_result = await prisma.tx_tenant_books.delete({
-      where: { id: bookId },
+      where: { id: bookId, tenant_id: tenantId },
     });
     console.log(book_result);
     return c.json({ message: "書籍情報を削除しました" });
@@ -148,17 +206,20 @@ app.delete("/:id", async (c) => {
 });
 
 //書籍の借用/返却をするAPI
-app.put("/rental/:id", async (c) => {
-  const bookId = Number(c.req.param("id"));
-  const { action, userName } = await c.req.json<{
+app.put("/rental/:bookId", async (c) => {
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
+  const userId = payload.userId;
+  const bookId = Number(c.req.param("bookId"));
+  const { action } = await c.req.json<{
     action: boolean;
-    userName: string;
   }>();
+
   const prisma = getPrisma(c.env.DATABASE_URL);
 
   // 書籍存在チェック
   const targetBook = await prisma.tx_tenant_books.findFirst({
-    where: { id: bookId },
+    where: { id: bookId, tenant_id: tenantId },
   });
 
   if (!targetBook) {
@@ -179,6 +240,11 @@ app.put("/rental/:id", async (c) => {
   }
   // ステータス更新
   try {
+    // ユーザ名を取得
+    const user = await prisma.mst_users.findUniqueOrThrow({
+      where: { id: userId },
+    });
+
     const result = await prisma.tx_tenant_books.update({
       data: {
         // actionが借用（true）だったら、ステータスは貸出中（false)
@@ -186,14 +252,14 @@ app.put("/rental/:id", async (c) => {
         available: !action,
         updated_at: new Date(),
       },
-      where: { id: bookId },
+      where: { id: bookId, tenant_id: tenantId },
     });
     console.log(result);
 
     const history = await prisma.tx_rental_histories.create({
       data: {
         book_id: bookId,
-        user_name: userName,
+        user_name: user.name,
         action,
         created_at: new Date(),
       },
@@ -207,8 +273,10 @@ app.put("/rental/:id", async (c) => {
   // 履歴追加
 });
 
-app.get("/histories/:id", async (c) => {
-  const tenantId = Number(c.req.param("id"));
+// テナントないの書籍全ての貸出履歴を取得
+app.get("/histories", async (c) => {
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
   const prisma = getPrisma(c.env.DATABASE_URL);
 
   const histories = await prisma.tx_tenant_books.findMany({
@@ -218,12 +286,15 @@ app.get("/histories/:id", async (c) => {
   return c.json(histories);
 });
 
-app.get("/history/:id", async (c) => {
+// テナント内の特定書籍の貸出履歴を取得
+app.get("/history/:bookId", async (c) => {
   const bookId = Number(c.req.param("id"));
+  const payload = c.get("jwtPayload");
+  const tenantId = Number(payload.tenantId);
   const prisma = getPrisma(c.env.DATABASE_URL);
 
   const histories = await prisma.tx_tenant_books.findFirst({
-    where: { id: bookId },
+    where: { id: bookId, tenant_id: tenantId },
     include: { histories: true },
   });
   return c.json(histories);

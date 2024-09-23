@@ -6,35 +6,40 @@ import auth from "./auth/auth";
 import { getCookie } from "hono/cookie";
 import { verify } from "hono/jwt";
 import { Bindings } from "./types";
+import {
+  JwtTokenExpired,
+  JwtTokenSignatureMismatched,
+} from "hono/utils/jwt/types";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-// ここMiddlewareでCookieを検証するのが良さそう
+// tokenの検証
 app.use("api/v1/*", async (c, next) => {
   const token = getCookie(c, "token");
 
-  // tokenチェック
+  // token存在チェック
   if (!token) {
-    return c.json({ message: "not authorized" });
+    return c.json({ message: "Not authorized" });
   }
 
+  // トークンの検証
   try {
-    // トークンの検証
     const payload = await verify(token, c.env.TOKEN_SECRET);
-    // 日付の検証もしてくれる？
-
-    // //  payloadの有効期限を確認
-    // if (!payload.exp || payload.exp >= Math.floor(Date.now() / 1000)) {
-    //   return c.json({ message: "Expired token" });
-    // }
     c.set("jwtPayload", payload);
   } catch (e) {
-    console.error(e);
-    return c.json({ message: "Invalid token" });
+    if (e instanceof JwtTokenExpired) {
+      return c.json({ message: "Token expired" });
+    }
+    if (e instanceof JwtTokenSignatureMismatched) {
+      return c.json({ message: "Invalid token" });
+    }
+    throw e;
   }
 
+  // payloadをrouteに渡す
   await next();
 });
+
 app.route("auth", auth);
 app.route("api/v1/books", books);
 app.route("api/v1/tenants", tenants);
