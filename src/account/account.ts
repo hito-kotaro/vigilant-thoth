@@ -7,7 +7,6 @@ import { Bindings } from "../types";
 const app = new Hono<{ Bindings: Bindings }>();
 
 // テナント新規契約
-// memo : rootユーザは作成しない管理者権限持ちの初期ユーザーを作る
 app.post("/", async (c) => {
   const { tenantName, userName, mail, password } = await c.req.json<{
     tenantName: string;

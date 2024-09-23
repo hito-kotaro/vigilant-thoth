@@ -3,9 +3,9 @@ import { Bindings, getPrisma } from "../prisma/prismaFunction";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get("/:id", async (c) => {
+app.get("/", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const tenantId = Number(c.req.param("id"));
+  const tenantId = c.get("jwtPayload");
 
   try {
     const tenants = await prisma.mst_tenants.findUniqueOrThrow({
@@ -20,88 +20,19 @@ app.get("/:id", async (c) => {
   }
 });
 
-// テナント新規作成
-app.post("/", async (c) => {
-  const { tenantName, rootUser, rootPassword } = await c.req.json<{
-    tenantName: string;
-    rootUser: string;
-    rootPassword: string;
-  }>();
-  const prisma = getPrisma(c.env.DATABASE_URL);
-
-  const alreadyExist = await prisma.mst_tenants.findFirst({
-    where: { tenant_name: tenantName },
-  });
-
-  if (alreadyExist) {
-    return c.json({ message: "テナント名がすでに使用されています" });
-  }
-
-  const newTenant = {
-    tenant_name: tenantName,
-    root_user: rootUser,
-    root_password: rootPassword,
-    created_at: new Date().toISOString(),
-  };
-
-  try {
-    const tenant = await prisma.mst_tenants.create({ data: newTenant });
-    return c.json(tenant);
-  } catch (e) {
-    console.error(e);
-    return c.json({ message: "テナントの作成に失敗しました" });
-  }
-});
-
-// テナントパスワードの更新
-app.put("/:id", async (c) => {
-  const { newPassword } = await c.req.json<{ newPassword: string }>();
-  const tenantId = Number(c.req.param("id"));
-
-  const prisma = getPrisma(c.env.DATABASE_URL);
-
-  try {
-    const alreadyExist = await prisma.mst_tenants.findUniqueOrThrow({
-      where: { id: tenantId },
-    });
-  } catch (e) {
-    console.error(e);
-    return c.json({ message: "パスワードの更新に失敗しました" });
-  }
-
-  try {
-    await prisma.mst_tenants.update({
-      where: {
-        id: tenantId,
-      },
-      data: {
-        root_password: newPassword,
-      },
-    });
-    return c.json({ message: "パスワードを更新しました" });
-  } catch (e) {
-    console.log(e);
-    return c.json({ message: "パスワードの更新に失敗しました" });
-  }
-});
-
 // テナントの削除
-app.delete("/:id", async (c) => {
-  const tenantId = Number(c.req.param("id"));
-
+app.delete("/", async (c) => {
+  const tenantId = c.get("jwtPayload");
   const prisma = getPrisma(c.env.DATABASE_URL);
 
-  try {
-    const alreadyExist = await prisma.mst_tenants.findUniqueOrThrow({
-      where: { id: tenantId },
-    });
-  } catch (e) {
-    console.error(e);
+  const tenant = await prisma.mst_tenants.findUnique({
+    where: { id: tenantId },
+  });
+  if (tenant) {
     return c.json({ message: "対象テナントが存在しません" });
   }
 
   try {
-    // 最後にテナントを削除
     // cascadeが有効になっているので、書籍データを削除すると紐づく子データも削除される
     await prisma.mst_tenants.delete({
       where: {
