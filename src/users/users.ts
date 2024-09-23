@@ -3,9 +3,11 @@ import { Bindings, getPrisma } from "../prisma/prismaFunction";
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get("/:id", async (c) => {
+app.get("/", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const tenantId = Number(c.req.param("id"));
+  const payload = c.get("jwtPayload");
+  const tenantId = payload.tenantId;
+
   try {
     const users = await prisma.mst_users.findMany({
       where: {
@@ -19,13 +21,17 @@ app.get("/:id", async (c) => {
   }
 });
 
+// ユーザ登録
 app.post("/", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const { tenantId, name, mail, password } = await c.req.json<{
+  const payload = c.get("jwtPayload");
+  const tenantId = payload.tenantId;
+  const { name, mail, password, admin } = await c.req.json<{
     tenantId: number;
     name: string;
     mail: string;
     password: string;
+    admin: boolean;
   }>();
 
   //　mail重複チェック
@@ -45,6 +51,7 @@ app.post("/", async (c) => {
         name,
         password,
         mail,
+        admin,
         created_at: new Date(),
       },
     });
@@ -56,9 +63,9 @@ app.post("/", async (c) => {
   }
 });
 
-app.put("/:id", async (c) => {
+app.put("/:userId", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const userId = Number(c.req.param("id"));
+  const userId = c.req.param("userId");
 
   // ユーザ存在チェック
   const targetUser = await prisma.mst_users.findFirst({
@@ -103,9 +110,9 @@ app.put("/:id", async (c) => {
   }
 });
 
-app.delete("/:id", async (c) => {
+app.delete("/:userId", async (c) => {
   const prisma = getPrisma(c.env.DATABASE_URL);
-  const userId = Number(c.req.param("id"));
+  const userId = Number(c.req.param("userId"));
 
   // ユーザ存在チェック
   const targetUser = await prisma.mst_users.findFirst({
