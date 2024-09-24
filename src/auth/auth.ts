@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { getPrisma } from "../prisma/prismaFunction";
 import { sign } from "hono/jwt";
 import { Bindings } from "../types";
-import { setCookie } from "hono/cookie";
+import { deleteCookie, setCookie } from "hono/cookie";
 import { HTTPException } from "hono/http-exception";
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -44,6 +44,11 @@ app.post("/token", async (c) => {
   const token = await sign(payload, c.env.TOKEN_SECRET || "");
   setCookie(c, "token", token);
   return c.json({ token });
+});
+
+app.delete("/logout", async (c) => {
+  deleteCookie(c, "token");
+  return c.json({ message: "ログアウト" });
 });
 
 export default app;
