@@ -1,0 +1,79 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model mst_tenants {
+  id Int @id @default(autoincrement())
+  tenant_name String @unique
+  notice_string String?
+  created_at DateTime
+  updated_at DateTime?
+  users mst_users[] 
+  books tx_tenant_books[]
+  reviews tx_rental_histories[]
+  histories tx_book_reviews[]
+}
+
+model mst_users {
+  id Int @id @default(autoincrement())
+  tenant_id Int
+  name String
+  mail String
+  password String
+  admin Boolean
+  created_at DateTime
+  updated_at DateTime?
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+}
+
+model tx_tenant_books {
+  id Int @id @default(autoincrement())
+  tenant_id Int
+  isbn String 
+  available Boolean
+  title String
+  author String?
+  publisher String?
+  published_at String?
+  created_at DateTime
+  updated_at DateTime?
+  histories tx_rental_histories[]
+  reviews tx_book_reviews[]
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
+}
+
+model tx_rental_histories {
+  id Int @id @default(autoincrement())
+  tenant_id Int
+  book_id Int
+  user_name String
+  action Boolean
+  created_at DateTime
+  book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
+}
+
+model tx_book_reviews {
+  id Int @id @default(autoincrement())
+  tenant_id Int
+  book_id Int
+  user_name String
+  comment String
+  rating Int
+  created_at DateTime
+  updated_at DateTime?
+  book tx_tenant_books @relation(fields: [book_id], references: [id],onDelete: Cascade)
+  tenant mst_tenants @relation(fields: [tenant_id], references: [id],onDelete: Cascade)
+}
